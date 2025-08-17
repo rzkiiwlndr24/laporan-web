@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laporan Data Google Forms</title>
+    <!-- Tailwind CSS untuk styling modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8 bg-gray-100 min-h-screen">
+    <div class="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-6 sm:p-8 space-y-6">
+
+        <!-- Header Aplikasi -->
+        <header class="text-center space-y-2">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-800">Laporan Data Google Forms</h1>
+            <p class="text-gray-600">Laporan ini dibuat dari data yang diterbitkan di Google Sheets. Tekan tombol untuk mengambil data terbaru.</p>
+        </header>
+
+        <!-- Bagian Kontrol dan Tombol -->
+        <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <button id="fetchDataButton" class="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-full shadow-lg hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                Ambil Data Terbaru
+            </button>
+            <button id="downloadButton" class="w-full sm:w-auto px-6 py-3 bg-green-600 text-white font-semibold rounded-full shadow-lg hover:bg-green-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2" style="display: none;">
+                Unduh sebagai CSV
+            </button>
+        </div>
+
+        <!-- Indikator Loading dan Pesan -->
+        <div id="statusMessage" class="text-center text-gray-500 italic" style="display: none;">
+            <p>Memuat data, mohon tunggu...</p>
+        </div>
+
+        <!-- Container untuk Tabel Laporan -->
+        <div class="overflow-x-auto rounded-xl border border-gray-200">
+            <table id="reportTable" class="min-w-full divide-y divide-gray-200">
+                <thead>
+                    <tr id="tableHeader" class="bg-gray-50">
+                        <!-- Header tabel akan dibuat secara dinamis oleh JavaScript -->
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="bg-white divide-y divide-gray-200">
+                    <!-- Baris data akan dibuat secara dinamis di sini -->
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        // URL Google Sheets yang sudah diterbitkan.
+        // GANTI URL DI BAWAH INI DENGAN URL PUBLIK DARI GOOGLE SHEETS ANDA.
+        // Pastikan Anda memilih format CSV saat memublikasikannya.
+        const googleSheetUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRSqB-P0gielRqEJKDKOeijY6a9V3U7DPhXLLqFBnhPS8-hTR5J-EUApIMV6WNCERbi0aY3l_mlN99t/pub?output=csv";
+
+        const fetchDataButton = document.getElementById('fetchDataButton');
+        const downloadButton = document.getElementById('downloadButton');
+        const statusMessage = document.getElementById('statusMessage');
+        const tableHeader = document.getElementById('tableHeader');
+        const tableBody = document.getElementById('tableBody');
+
+        let allData = []; // Variabel untuk menyimpan data yang sudah diambil
+
+        // Fungsi untuk mengambil data dari Google Sheets
+        async function fetchData() {
+            try {
+                // Tampilkan pesan "memuat" dan sembunyikan tombol unduh
+                statusMessage.style.display = 'block';
+                downloadButton.style.display = 'none';
+                tableBody.innerHTML = ''; // Kosongkan tabel sebelumnya
+                
+                const response = await fetch(googleSheetUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const csvText = await response.text();
+                parseCSV(csvText);
+
+            } catch (error) {
+                console.error("Gagal mengambil data:", error);
+                statusMessage.innerHTML = "<p class='text-red-500'>Gagal mengambil data. Pastikan URL benar atau coba lagi nanti.</p>";
+            } finally {
+                // Sembunyikan pesan "memuat" setelah selesai
+                statusMessage.style.display = 'none';
+            }
+        }
+
+        // Fungsi untuk mengurai data CSV
+        function parseCSV(text) {
+            const rows = text.split('\n').map(row => row.split(',').map(cell => cell.trim()));
+            if (rows.length > 1) {
+                // Simpan data (seluruh baris kecuali header)
+                allData = rows.slice(1);
+                // Render tabel dengan data yang sudah diurai
+                renderTable(rows[0], allData);
+                // Tampilkan tombol unduh setelah data berhasil dimuat
+                if (allData.length > 0) {
+                    downloadButton.style.display = 'block';
+                }
+            } else {
+                statusMessage.innerHTML = "<p>Tidak ada data ditemukan.</p>";
+            }
+        }
+
+        // Fungsi untuk membuat tabel HTML dari data
+        function renderTable(headers, data) {
+            // Bersihkan header dan body tabel
+            tableHeader.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            // Buat header tabel
+            headers.forEach(headerText => {
+                const th = document.createElement('th');
+                th.textContent = headerText;
+                th.className = 'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider';
+                tableHeader.appendChild(th);
+            });
+
+            // Buat baris data
+            data.forEach(rowData => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                rowData.forEach(cellData => {
+                    const td = document.createElement('td');
+                    td.textContent = cellData;
+                    td.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-800';
+                    tr.appendChild(td);
+                });
+                tableBody.appendChild(tr);
+            });
+        }
+
+        // Fungsi untuk mengunduh data sebagai file CSV
+        function downloadCSV() {
+            // Buat konten CSV dari data yang ada
+            const csvContent = "data:text/csv;charset=utf-8," +
+                allData.map(e => e.join(",")).join("\n");
+            
+            // Buat elemen link tersembunyi untuk mengunduh file
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "laporan_data_forms.csv");
+            document.body.appendChild(link); // Tambahkan link ke dokumen
+            link.click(); // Klik link untuk memulai unduhan
+            document.body.removeChild(link); // Hapus link setelah diunduh
+        }
+
+        // Tambahkan event listener untuk tombol
+        fetchDataButton.addEventListener('click', fetchData);
+        downloadButton.addEventListener('click', downloadCSV);
+
+        // Ambil data pertama kali saat halaman dimuat
+        window.onload = fetchData;
+    </script>
+</body>
+</html>
